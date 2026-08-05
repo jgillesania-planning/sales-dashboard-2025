@@ -608,12 +608,18 @@ const ARCHIVE     = RAW.archive       || [];   // [{date, label, skus:{sku:{jtl,
 const AGING_ARCH     = RAW.aging_archive     || [];   // [{week, label, date_start, date_end, sources:{}, skus:[]}]
 const OVERSTOCK_ARCH = RAW.overstock_archive || [];   // same shape, DOH>365
 const TURNOVER     = RAW.turnover || null;
-let _invSrcFilter = 'All';
+let _invSources  = new Set();    // empty = All
 let _invStatuses = new Set();    // empty = All (Replen/Disco)
 let _invLifecycles = new Set();  // empty = All (Pre-Launch/F3M/M4-12/PY1)
-let _invBrandFilter = 'All';
+let _invBrands   = new Set();    // empty = All
 
 function _lcToggle(v){if(v==='All'){_invStatuses.clear();}else{if(_invStatuses.has(v))_invStatuses.delete(v);else _invStatuses.add(v);}renderStockStatus();}
+function _invSrcPick(v,e){if(e)e.stopPropagation();if(v==='__ALL__'){_invSources.clear();}else{if(_invSources.has(v))_invSources.delete(v);else _invSources.add(v);}renderStockStatus();}
+function _invSrcDdToggle(){const m=document.getElementById('_inv_src_menu');if(!m)return;const open=m.style.display==='block';document.querySelectorAll('[id$="_menu"]').forEach(x=>x.style.display='none');m.style.display=open?'none':'block';}
+function _invBrandPick(v,e){if(e)e.stopPropagation();if(v==='__ALL__'){_invBrands.clear();}else{if(_invBrands.has(v))_invBrands.delete(v);else _invBrands.add(v);}renderStockStatus();}
+function _invBrandDdToggle(){const m=document.getElementById('_inv_brand_menu');if(!m)return;const open=m.style.display==='block';document.querySelectorAll('[id$="_menu"]').forEach(x=>x.style.display='none');m.style.display=open?'none':'block';}
+function _invStatusPick(v,e){if(e)e.stopPropagation();if(v==='__ALL__'){_invStatuses.clear();}else{if(_invStatuses.has(v))_invStatuses.delete(v);else _invStatuses.add(v);}renderStockStatus();}
+function _invStatusDdToggle(){const m=document.getElementById('_inv_status_menu');if(!m)return;const open=m.style.display==='block';document.querySelectorAll('[id$="_menu"]').forEach(x=>x.style.display='none');m.style.display=open?'none':'block';}
 
 function _invLcDdToggle(){
   const m=document.getElementById('_inv_lc_menu');if(!m)return;
@@ -643,10 +649,10 @@ function _invLcPick(v,e){
   // Re-render tbody only
   const skus=INV.skus||[];
   const filtered=skus.filter(s=>{
-    if(_invSrcFilter!=='All'&&s.source!==_invSrcFilter)return false;
+    if(_invSources.size>0&&!_invSources.has(s.source))return false;
     if(_invStatuses.size>0&&!_invStatuses.has(s.status))return false;
     if(_invLifecycles.size>0&&!_invLifecycles.has(s.lifecycle))return false;
-    if(_invBrandFilter!=='All'&&s.brand!==_invBrandFilter)return false;
+    if(_invBrands.size>0&&!_invBrands.has(s.brand))return false;
     if(_invCats.size>0&&!_invCats.has(s.cat))return false;
     if(_invMohBucket>=0&&_getMohBucket(s.doh)!==_invMohBucket)return false;
     if(_invSearch){const q=_invSearch.toLowerCase();if(!s.sku.toLowerCase().includes(q)&&!s.cat.toLowerCase().includes(q))return false;}
@@ -748,10 +754,10 @@ function _invCatPick(cat,e){
   // Re-render tbody only
   const skus=INV.skus||[];
   const filtered=skus.filter(s=>{
-    if(_invSrcFilter!=='All'&&s.source!==_invSrcFilter)return false;
+    if(_invSources.size>0&&!_invSources.has(s.source))return false;
     if(_invStatuses.size>0&&!_invStatuses.has(s.status))return false;
     if(_invLifecycles.size>0&&!_invLifecycles.has(s.lifecycle))return false;
-    if(_invBrandFilter!=='All'&&s.brand!==_invBrandFilter)return false;
+    if(_invBrands.size>0&&!_invBrands.has(s.brand))return false;
     if(_invCats.size>0&&!_invCats.has(s.cat))return false;
     if(_invMohBucket>=0&&_getMohBucket(s.doh)!==_invMohBucket)return false;
     if(_invSearch){const q=_invSearch.toLowerCase();if(!s.sku.toLowerCase().includes(q)&&!s.cat.toLowerCase().includes(q))return false;}
@@ -835,23 +841,35 @@ function renderStockStatus() {
     return `<th onclick="invSort('${col}')" style="padding:8px 10px;text-align:${align};font-size:10px;font-weight:700;color:${clr};background:#1e3a5f;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;cursor:pointer;user-select:none">${label}${arrow}</th>`;
   }
 
-  // Source pills
-  const srcPills = [
-    ['All',`All ${skus.length}`,'#6b7280','#f3f4f6'],
-    ['China',`China ${skus.filter(s=>s.source==='China').length}`,'#0369a1','#e0f2fe'],
-    ['Turkey',`Turkey ${skus.filter(s=>s.source==='Turkey').length}`,'#d97706','#fffbeb'],
-    ['Germany',`Germany ${skus.filter(s=>s.source==='Germany').length}`,'#7c3aed','#f5f3ff'],
-  ].map(([v,label,c,bg])=>{const a=_invSrcFilter===v;return `<button onclick="_invSrcFilter='${v}';renderStockStatus()" style="padding:5px 14px;border-radius:20px;border:1.5px solid ${a?c:'var(--border)'};background:${a?bg:'#fff'};color:${a?c:'var(--muted)'};font-size:12px;font-weight:${a?700:500};font-family:inherit;cursor:pointer">${label}</button>`;}).join('');
+  // Source dropdown
+  const srcChk=(chk)=>`<span style="width:14px;height:14px;border:1.5px solid ${chk?'var(--accent)':'#d1d5db'};border-radius:3px;background:${chk?'var(--accent)':'#fff'};display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${chk?'<svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}</span>`;
+  const srcIsFiltered=_invSources.size>0;
+  const srcLabel=_invSources.size===0?'All':_invSources.size===1?[..._invSources][0]:`${_invSources.size} selected`;
+  const srcItems=[
+    `<div onclick="_invSrcPick('__ALL__',event)" style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px;border-bottom:1px solid var(--border);color:${!srcIsFiltered?'var(--accent)':'var(--text)'};font-weight:${!srcIsFiltered?700:400}">${srcChk(!srcIsFiltered)}<span>All</span></div>`,
+    ...['China','Turkey','Germany'].map(v=>{const chk=_invSources.has(v);const cnt=skus.filter(s=>s.source===v).length;return`<div onclick="_invSrcPick('${v}',event)" style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px;background:${chk?'#eff6ff':'transparent'};color:${chk?'var(--accent)':'var(--text)'};font-weight:${chk?700:400}">${srcChk(chk)}<span>${v} (${cnt})</span></div>`;})
+  ].join('');
+  const srcDropdown=`<div id="_inv_src_wrap" style="position:relative;display:inline-block">
+    <button onclick="_invSrcDdToggle()" style="display:flex;align-items:center;gap:8px;padding:7px 12px;border:1.5px solid ${srcIsFiltered?'var(--accent)':'var(--border)'};border-radius:6px;background:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:${srcIsFiltered?700:400};color:${srcIsFiltered?'var(--accent)':'var(--text)'};min-width:120px;justify-content:space-between">
+      <span>${srcLabel}</span><span style="font-size:10px;opacity:.5">▼</span>
+    </button>
+    <div id="_inv_src_menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:160px;background:#fff;border:1.5px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:100">${srcItems}</div>
+  </div>`;
 
-  // Status multi-select pills
-  const statusPills = [
-    ['All', `All`, '#6b7280','#f3f4f6'],
-    ['Replen', `Replen ${skus.filter(s=>s.status==='Replen').length}`, '#16a34a','#f0fdf4'],
-    ['Disco',  `Disco ${skus.filter(s=>s.status==='Disco').length}`,  '#ef4444','#fef2f2'],
-  ].map(([v,label,c,bg])=>{
-    const a = v==='All' ? _invStatuses.size===0 : _invStatuses.has(v);
-    return `<button onclick="_lcToggle('${v}')" style="padding:5px 14px;border-radius:20px;border:1.5px solid ${a?c:'var(--border)'};background:${a?bg:'#fff'};color:${a?c:'var(--muted)'};font-size:12px;font-weight:${a?700:500};font-family:inherit;cursor:pointer">${label}</button>`;
-  }).join('');
+  // Status dropdown
+  const stChk=(chk)=>`<span style="width:14px;height:14px;border:1.5px solid ${chk?'var(--accent)':'#d1d5db'};border-radius:3px;background:${chk?'var(--accent)':'#fff'};display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${chk?'<svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}</span>`;
+  const stIsFiltered=_invStatuses.size>0;
+  const stLabel=_invStatuses.size===0?'All':_invStatuses.size===1?[..._invStatuses][0]:`${_invStatuses.size} selected`;
+  const stItems=[
+    `<div onclick="_invStatusPick('__ALL__',event)" style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px;border-bottom:1px solid var(--border);color:${!stIsFiltered?'var(--accent)':'var(--text)'};font-weight:${!stIsFiltered?700:400}">${stChk(!stIsFiltered)}<span>All</span></div>`,
+    ...['Replen','Disco'].map(v=>{const chk=_invStatuses.has(v);const cnt=skus.filter(s=>s.status===v).length;return`<div onclick="_invStatusPick('${v}',event)" style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px;background:${chk?'#f0fdf4':'transparent'};color:${chk?'var(--accent)':'var(--text)'};font-weight:${chk?700:400}">${stChk(chk)}<span>${v} (${cnt})</span></div>`;})
+  ].join('');
+  const statusDropdown=`<div id="_inv_status_wrap" style="position:relative;display:inline-block">
+    <button onclick="_invStatusDdToggle()" style="display:flex;align-items:center;gap:8px;padding:7px 12px;border:1.5px solid ${stIsFiltered?'var(--accent)':'var(--border)'};border-radius:6px;background:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:${stIsFiltered?700:400};color:${stIsFiltered?'var(--accent)':'var(--text)'};min-width:120px;justify-content:space-between">
+      <span>${stLabel}</span><span style="font-size:10px;opacity:.5">▼</span>
+    </button>
+    <div id="_inv_status_menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:150px;background:#fff;border:1.5px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:100">${stItems}</div>
+  </div>`;
 
   // Lifecycle dropdown (same pattern as Category)
   const LC_ITEMS=['Pre-Launch','F3M','M4-12','PY1'];
@@ -871,12 +889,20 @@ function renderStockStatus() {
     </div>
   </div>`;
 
-  // Brand pills (few enough for pills)
-  const brandPills = ['All',...brandList].map(v=>{
-    const cnt=v==='All'?skus.length:skus.filter(s=>s.brand===v).length;
-    const a=_invBrandFilter===v;
-    return `<button onclick="_invBrandFilter='${v}';renderStockStatus()" style="padding:5px 14px;border-radius:20px;border:1.5px solid ${a?'var(--accent)':'var(--border)'};background:${a?'#fdf6f2':'#fff'};color:${a?'var(--accent)':'var(--muted)'};font-size:12px;font-weight:${a?700:500};font-family:inherit;cursor:pointer">${v} ${cnt}</button>`;
-  }).join('');
+  // Brand dropdown
+  const brChk=(chk)=>`<span style="width:14px;height:14px;border:1.5px solid ${chk?'var(--accent)':'#d1d5db'};border-radius:3px;background:${chk?'var(--accent)':'#fff'};display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${chk?'<svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}</span>`;
+  const brIsFiltered=_invBrands.size>0;
+  const brLabel=_invBrands.size===0?'All':_invBrands.size===1?[..._invBrands][0]:`${_invBrands.size} selected`;
+  const brItems=[
+    `<div onclick="_invBrandPick('__ALL__',event)" style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px;border-bottom:1px solid var(--border);color:${!brIsFiltered?'var(--accent)':'var(--text)'};font-weight:${!brIsFiltered?700:400}">${brChk(!brIsFiltered)}<span>All</span></div>`,
+    ...brandList.map(v=>{const chk=_invBrands.has(v);const cnt=skus.filter(s=>s.brand===v).length;return`<div onclick="_invBrandPick('${v.replace(/'/g,"\\'")}',event)" style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px;background:${chk?'#fdf6f2':'transparent'};color:${chk?'var(--accent)':'var(--text)'};font-weight:${chk?700:400}">${brChk(chk)}<span>${v} (${cnt})</span></div>`;})
+  ].join('');
+  const brandDropdown=`<div id="_inv_brand_wrap" style="position:relative;display:inline-block">
+    <button onclick="_invBrandDdToggle()" style="display:flex;align-items:center;gap:8px;padding:7px 12px;border:1.5px solid ${brIsFiltered?'var(--accent)':'var(--border)'};border-radius:6px;background:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:${brIsFiltered?700:400};color:${brIsFiltered?'var(--accent)':'var(--text)'};min-width:140px;justify-content:space-between">
+      <span>${brLabel}</span><span style="font-size:10px;opacity:.5">▼</span>
+    </button>
+    <div id="_inv_brand_menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:200px;max-height:300px;overflow-y:auto;background:#fff;border:1.5px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:100">${brItems}</div>
+  </div>`;
 
   // Category multi-select dropdown (like Planning Accuracy)
   const chkBox=(chk)=>`<span class="_inv_cat_chk" style="width:14px;height:14px;border:1.5px solid ${chk?'var(--accent)':'#d1d5db'};border-radius:3px;background:${chk?'var(--accent)':'#fff'};display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${chk?'<svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}</span>`;
@@ -964,23 +990,27 @@ function renderStockStatus() {
       }).join('')}
     </div>
 
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
-      <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Source:</span>
-      ${srcPills}
-    </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
-      <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Brand:</span>
-      ${brandPills}
-    </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
-      <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Status:</span>
-      ${statusPills}
-    </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
-      <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Lifecycle:</span>
-      ${lcDropdown}
-      <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-left:8px">Category:</span>
-      ${catDropdown}
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Source:</span>
+        ${srcDropdown}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Brand:</span>
+        ${brandDropdown}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Status:</span>
+        ${statusDropdown}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Lifecycle:</span>
+        ${lcDropdown}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Category:</span>
+        ${catDropdown}
+      </div>
       <input type="text" placeholder="Search SKU…" value="${_invSearch}"
         oninput="_invSearch=this.value;renderStockStatus()"
         style="margin-left:auto;padding:6px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;outline:none;width:180px">
