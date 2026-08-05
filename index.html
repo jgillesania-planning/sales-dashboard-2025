@@ -816,10 +816,10 @@ function renderStockStatus() {
   const brandList = [...new Set(skus.map(s=>s.brand).filter(Boolean))].sort();
 
   let rows = skus.filter(s=>{
-    if(_invSrcFilter!=='All' && s.source!==_invSrcFilter) return false;
+    if(_invSources.size>0 && !_invSources.has(s.source)) return false;
     if(_invStatuses.size>0 && !_invStatuses.has(s.status)) return false;
     if(_invLifecycles.size>0 && !_invLifecycles.has(s.lifecycle)) return false;
-    if(_invBrandFilter!=='All' && s.brand!==_invBrandFilter) return false;
+    if(_invBrands.size>0 && !_invBrands.has(s.brand)) return false;
     if(_invCats.size>0 && !_invCats.has(s.cat)) return false;
     if(_invMohBucket>=0 && _getMohBucket(s.doh)!==_invMohBucket) return false;
     if(_invSearch){const q=_invSearch.toLowerCase();if(!s.sku.toLowerCase().includes(q)&&!s.cat.toLowerCase().includes(q))return false;}
