@@ -1948,6 +1948,7 @@ function _sopRenderSku(brand, cat){
         <td style="${TD};text-align:right">${fN(s.aop)}</td>
         <td style="${TD};text-align:right">${fN(s.raop)}</td>
         <td style="${TD};text-align:right">${fN(s.running_mtd)}</td>
+        <td style="${TD};text-align:right;color:#475569">${fN(s.raw_actual)}</td>
         <td style="${TD};text-align:right;font-weight:700;color:${cc(ctp)}">${pt(ctp)}</td>
         <td style="${TD};text-align:right;color:${bal!=null&&bal<0.4?'#16a34a':'var(--text)'}">${pt(bal)}</td>
         <td style="${TD};text-align:right">${fN(s.total_inv)}</td>
@@ -1965,13 +1966,14 @@ function _sopRenderSku(brand, cat){
       <td style="${TD};text-align:right;font-weight:700">${fN(tAop)}</td>
       <td style="${TD};text-align:right;font-weight:700">${fN(tRaop)}</td>
       <td style="${TD};text-align:right;font-weight:700">${fN(tMtd)}</td>
+      <td style="${TD};text-align:right;font-weight:700;color:#475569">${fN(tRaw)}</td>
       <td style="${TD};text-align:right;font-weight:700;color:${cc(pp(tMtd,tRaop))}">${pt(pp(tMtd,tRaop))}</td>
       <td style="${TD};text-align:right;font-weight:700">${pt(tRaop>0?(tRaop-tRaw)/tRaop:null)}</td>
       <td style="${TD};text-align:right;font-weight:700">${fN(tInv)}</td>
       <td style="${TD};text-align:right;font-weight:700">${fE(tIv)}</td>
       <td style="${TD};text-align:right;font-weight:700;color:${mc(smoh)}">${smoh!=null?smoh.toFixed(1):'—'}</td>
       <td style="${TD};text-align:right;font-weight:700;color:${mc(smoh)}">${smoh!=null?smoh.toFixed(2):'—'}</td>
-    </tr><tr><td colspan="11" style="padding:3px"></td></tr>`;
+    </tr><tr><td colspan="12" style="padding:3px"></td></tr>`;
   }
   // Grand total: value-weighted avg range across all SKUs
   const gmoh=gIv>0?gWdoh/gIv/30.44:null;
@@ -1981,6 +1983,7 @@ function _sopRenderSku(brand, cat){
     <td style="${TD};text-align:right;font-weight:800">${fN(gAop)}</td>
     <td style="${TD};text-align:right;font-weight:800">${fN(gRaop)}</td>
     <td style="${TD};text-align:right;font-weight:800">${fN(gMtd)}</td>
+    <td style="${TD};text-align:right;font-weight:800;color:#cadcfc">${fN(gRaw)}</td>
     <td style="${TD};text-align:right;font-weight:800">${pt(gctp)}</td>
     <td style="${TD};text-align:right;font-weight:800">${pt(gbal)}</td>
     <td style="${TD};text-align:right;font-weight:800">${fN(gInv)}</td>
@@ -1995,6 +1998,7 @@ function _sopRenderSku(brand, cat){
       <th style="${thS};text-align:right">AOP</th>
       <th style="${thS};text-align:right">RAOP</th>
       <th style="${thS};text-align:right">Running MTD</th>
+      <th style="${thS};text-align:right">Sep 1-2 Actual</th>
       <th style="${thS};text-align:right">CTP</th>
       <th style="${thS};text-align:right">Balance vs RAOP</th>
       <th style="${thS};text-align:right">Total Inventory</th>
